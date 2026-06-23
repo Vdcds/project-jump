@@ -36,7 +36,7 @@ func main() {
 			return
 		}
 	}
-
+	IncrementProject(selection.Path)
 	fmt.Printf(
 		"%s::%s\n",
 		action,
