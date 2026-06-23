@@ -5,34 +5,51 @@ import (
 	"strings"
 )
 
-func PickDirectory(dirs []Directory) (Directory, error) {
-	displayMap := make(map[string]Directory)
+func PickDirectory(dirs []Directory) (Selection, error) {
+	displayMap := make(map[string]string)
 
 	var names []string
 
 	for _, dir := range dirs {
 		names = append(names, dir.Name)
-		displayMap[dir.Name] = dir
+		displayMap[dir.Name] = dir.Path
 	}
-
-	input := strings.Join(names, "\n")
 
 	cmd := exec.Command(
 		"fzf",
+		"--expect=ctrl-n,ctrl-v,ctrl-f",
 		"--height=40%",
 		"--layout=reverse",
 		"--border",
 		"--prompt=󰉋  ",
 	)
 
-	cmd.Stdin = strings.NewReader(input)
+	cmd.Stdin = strings.NewReader(
+		strings.Join(names, "\n"),
+	)
 
 	out, err := cmd.Output()
 	if err != nil {
-		return Directory{}, err
+		return Selection{}, err
 	}
 
-	selected := strings.TrimSpace(string(out))
+	lines := strings.Split(
+		strings.TrimSpace(string(out)),
+		"\n",
+	)
 
-	return displayMap[selected], nil
+	var key string
+	var selected string
+
+	if len(lines) == 1 {
+		selected = lines[0]
+	} else {
+		key = lines[0]
+		selected = lines[1]
+	}
+
+	return Selection{
+		Key:  key,
+		Path: displayMap[selected],
+	}, nil
 }

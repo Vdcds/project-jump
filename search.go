@@ -3,24 +3,12 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 )
 
-type Directory struct {
-	Name string
-	Path string
-}
-
-var ignored = map[string]bool{
-	".git":         true,
-	"node_modules": true,
-	".next":        true,
-	"dist":         true,
-	"build":        true,
-	"coverage":     true,
-	".turbo":       true,
-	".cache":       true,
-	"vendor":       true,
-	"Contents":     true,
+func IsGitRepo(path string) bool {
+	_, err := os.Stat(filepath.Join(path, ".git"))
+	return err == nil
 }
 
 func FindDirectories() ([]Directory, error) {
@@ -29,43 +17,108 @@ func FindDirectories() ([]Directory, error) {
 		return nil, err
 	}
 
-	roots := []string{
-		filepath.Join(home, "dev"),
-		filepath.Join(home, "Desktop"),
-		filepath.Join(home, "Downloads"),
-		filepath.Join(home, ".config"),
-	}
-
 	var dirs []Directory
 
-	for _, root := range roots {
+	// -------------------------
+	// DEV -> Git repos only
+	// -------------------------
 
-		if _, err := os.Stat(root); err != nil {
-			continue
-		}
+	devRoot := filepath.Join(home, "dev")
 
-		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
+	if _, err := os.Stat(devRoot); err == nil {
+
+		err = filepath.Walk(
+			devRoot,
+			func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return nil
+				}
+
+				if !info.IsDir() {
+					return nil
+				}
+
+				// Skip app bundles
+				if strings.HasSuffix(info.Name(), ".app") {
+					return filepath.SkipDir
+				}
+
+				// Found a repo
+				if IsGitRepo(path) {
+
+					dirs = append(dirs, Directory{
+						Name: filepath.Base(path),
+						Path: path,
+					})
+
+					return filepath.SkipDir
+				}
+
 				return nil
-			}
-
-			if info.IsDir() && ignored[info.Name()] {
-				return filepath.SkipDir
-			}
-
-			if info.IsDir() {
-				dirs = append(dirs, Directory{
-					Name: filepath.Base(path),
-					Path: path,
-				})
-			}
-
-			return nil
-		})
+			},
+		)
 		if err != nil {
 			return nil, err
 		}
 	}
 
+	// -------------------------
+	// Desktop
+	// -------------------------
+
+	if err := addTopLevelDirs(
+		filepath.Join(home, "Desktop"),
+		&dirs,
+	); err != nil {
+		return nil, err
+	}
+
+	// -------------------------
+	// Downloads
+	// -------------------------
+
+	if err := addTopLevelDirs(
+		filepath.Join(home, "Downloads"),
+		&dirs,
+	); err != nil {
+		return nil, err
+	}
+
+	// -------------------------
+	// .config
+	// -------------------------
+
+	if err := addTopLevelDirs(
+		filepath.Join(home, ".config"),
+		&dirs,
+	); err != nil {
+		return nil, err
+	}
+
 	return dirs, nil
+}
+
+func addTopLevelDirs(root string, dirs *[]Directory) error {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil
+	}
+
+	for _, entry := range entries {
+
+		if !entry.IsDir() {
+			continue
+		}
+
+		if strings.HasSuffix(entry.Name(), ".app") {
+			continue
+		}
+
+		*dirs = append(*dirs, Directory{
+			Name: entry.Name(),
+			Path: filepath.Join(root, entry.Name()),
+		})
+	}
+
+	return nil
 }

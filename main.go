@@ -2,24 +2,44 @@ package main
 
 import (
 	"fmt"
-	"time"
 )
 
 func main() {
-	start := time.Now()
-
 	dirs, err := FindDirectories()
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println(time.Since(start))
-	fmt.Println("Found", len(dirs), "directories")
-
-	selected, err := PickDirectory(dirs)
+	selection, err := PickDirectory(dirs)
 	if err != nil {
 		return
 	}
 
-	fmt.Println(selected.Path)
+	action := ""
+
+	switch selection.Key {
+
+	case "ctrl-n":
+		action = "nvim"
+
+	case "ctrl-v":
+		action = "code"
+
+	case "ctrl-f":
+		action = "finder"
+	}
+
+	if action == "" {
+
+		action, err = PickAction()
+		if err != nil {
+			return
+		}
+	}
+
+	fmt.Printf(
+		"%s::%s\n",
+		action,
+		selection.Path,
+	)
 }
