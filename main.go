@@ -27,6 +27,9 @@ func main() {
 
 	case "ctrl-f":
 		action = "finder"
+
+	case "ctrl-g":
+		action = "github"
 	}
 
 	if action == "" {
@@ -36,7 +39,9 @@ func main() {
 			return
 		}
 	}
+
 	IncrementProject(selection.Path)
+
 	fmt.Printf(
 		"%s::%s\n",
 		action,

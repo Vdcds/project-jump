@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 func historyPath() string {
@@ -17,24 +18,24 @@ func historyPath() string {
 	)
 }
 
-func LoadHistory() map[string]int {
+func LoadHistory() map[string]ProjectHistory {
 	path := historyPath()
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return make(map[string]int)
+		return make(map[string]ProjectHistory)
 	}
 
-	var history map[string]int
+	var history map[string]ProjectHistory
 
 	if err := json.Unmarshal(data, &history); err != nil {
-		return make(map[string]int)
+		return make(map[string]ProjectHistory)
 	}
 
 	return history
 }
 
-func SaveHistory(history map[string]int) error {
+func SaveHistory(history map[string]ProjectHistory) error {
 	path := historyPath()
 
 	err := os.MkdirAll(filepath.Dir(path), 0o755)
@@ -57,7 +58,12 @@ func SaveHistory(history map[string]int) error {
 func IncrementProject(path string) {
 	history := LoadHistory()
 
-	history[path]++
+	entry := history[path]
+
+	entry.Count++
+	entry.LastOpened = time.Now().Unix()
+
+	history[path] = entry
 
 	err := SaveHistory(history)
 	if err != nil {

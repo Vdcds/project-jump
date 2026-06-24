@@ -4,16 +4,32 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
+	"time"
 )
 
 func PickDirectory(dirs []Directory) (Selection, error) {
 	history := LoadHistory()
 
+	score := func(path string) float64 {
+		entry, ok := history[path]
+		if !ok {
+			return 0
+		}
+
+		hoursAgo :=
+			(time.Now().Unix() - entry.LastOpened) / 3600
+
+		recencyBonus :=
+			100.0 / float64(hoursAgo+1)
+
+		return float64(entry.Count) + recencyBonus
+	}
+
 	sort.Slice(
 		dirs,
 		func(i, j int) bool {
-			return history[dirs[i].Path] >
-				history[dirs[j].Path]
+			return score(dirs[i].Path) >
+				score(dirs[j].Path)
 		},
 	)
 
@@ -32,7 +48,7 @@ func PickDirectory(dirs []Directory) (Selection, error) {
 
 	cmd := exec.Command(
 		"fzf",
-		"--expect=ctrl-n,ctrl-v,ctrl-f",
+		"--expect=ctrl-n,ctrl-v,ctrl-f,ctrl-g",
 		"--height=50%",
 		"--layout=reverse",
 		"--border",
@@ -40,8 +56,8 @@ func PickDirectory(dirs []Directory) (Selection, error) {
 		"--info=inline-right",
 		"--with-nth=1",
 		"--prompt=Jump ❯ ",
-		"--header=⏎ Actions • ^N Neovim • ^V VS Code • ^F Finder",
-		"--preview=echo {} | cut -f2 | xargs eza -T --level=2 --git-ignore",
+		"--header=⏎ Actions • ^N Neovim • ^V VS Code • ^F Finder • ^G GitHub",
+		"--preview=echo {} | cut -f2 | xargs ./scripts/preview.sh",
 		"--preview-window=right:45%",
 	)
 
